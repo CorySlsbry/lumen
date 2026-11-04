@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env
+.env.local
+.env*.local
+.vscode
+.idea
+*.log
+.DS_Store
+drizzle/migrations
+README.md
+docs/
+coverage/
+*.tsbuildinfo

@@ -1,0 +1,52 @@
+# Cloud Build pipeline for Lumen — builds + deploys to Cloud Run.
+#
+# Wire substitutions via the gcloud builds submit --substitutions flag, or
+# configure a Cloud Build trigger pointing at main.
+#
+# Secrets MUST come from Secret Manager — never put them in the source.
+
+substitutions:
+  _SERVICE: lumen
+  _REGION: us-central1
+  _SQL_INSTANCE: ""        # PROJECT:REGION:INSTANCE
+  _IMAGE: gcr.io/$PROJECT_ID/lumen:$SHORT_SHA
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_IMAGE}", "."]
+
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "${_IMAGE}"]
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --add-cloudsql-instances=${_SQL_INSTANCE}
+      - --set-secrets=DATABASE_URL=lumen-db-url:latest
+      - --set-secrets=FIREBASE_PRIVATE_KEY=lumen-firebase-key:latest
+      - --set-secrets=FIREBASE_CLIENT_EMAIL=lumen-firebase-email:latest
+      - --set-secrets=PLAID_CLIENT_ID=lumen-plaid-client:latest
+      - --set-secrets=PLAID_SECRET=lumen-plaid-secret:latest
+      - --set-secrets=STRIPE_SECRET_KEY=lumen-stripe-secret:latest
+      - --set-secrets=STRIPE_WEBHOOK_SECRET=lumen-stripe-webhook:latest
+      - --set-secrets=ANTHROPIC_API_KEY=lumen-anthropic-key:latest
+      - --set-env-vars=NODE_ENV=production,PLAID_ENV=development
+      - --memory=512Mi
+      - --cpu=1
+      - --min-instances=0
+      - --max-instances=20
+      - --concurrency=80
+      - --timeout=60s
+
+images:
+  - ${_IMAGE}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
